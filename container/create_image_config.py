@@ -15,6 +15,7 @@
 
 import argparse
 import json
+import platform
 import sys
 
 import six
@@ -62,7 +63,7 @@ parser.add_argument('--stamp-info-file', action='append', required=False,
                     help=('A list of files from which to read substitutions '
                           'to make in the provided fields, e.g. {BUILD_USER}'))
 
-_PROCESSOR_ARCHITECTURE = 'amd64'
+_PROCESSOR_ARCHITECTURE = 'arm64' if platform.processor() == 'aarch64' else 'amd64'
 
 _OPERATING_SYSTEM = 'linux'
 
