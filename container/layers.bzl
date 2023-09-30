@@ -37,7 +37,7 @@ def _extract_layers(ctx, artifact):
   }
 
 def get_from_target(ctx, attr_target, file_target):
-  if type(attr_target) == type([]) and hasattr(attr_target[0], "container_parts"):
+  if type(attr_target) == type([]) and len(attr_target) == 1 and hasattr(attr_target[0], "container_parts"):
     return attr_target[0].container_parts
   elif hasattr(attr_target, "container_parts"):
     return attr_target.container_parts
