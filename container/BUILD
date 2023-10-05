@@ -74,7 +74,7 @@ py_binary(
     visibility = ["//visibility:public"],
     deps = [
         "@bazel_tools//third_party/py/six",
-        "@io_bazel_pkg//tools/build_defs/pkg:archive",
+        "@bazel_tools//tools/build_defs/pkg:archive",
     ],
 )
 
