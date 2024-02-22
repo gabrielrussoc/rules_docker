@@ -65,6 +65,9 @@ parser.add_argument('--stamp-info-file', action='append', required=False,
 
 _PROCESSOR_ARCHITECTURE = 'arm64' if platform.processor() == 'aarch64' else 'amd64'
 
+parser.add_argument('--architecture', action='store', default=_PROCESSOR_ARCHITECTURE,
+                    help='Target build architecture.')
+
 _OPERATING_SYSTEM = 'linux'
 
 
@@ -131,7 +134,7 @@ def main():
         for (k, v) in six.iteritems(KeyValueToDict(args.env))
       },
       ports=args.ports, volumes=args.volumes, workdir=Stamp(args.workdir)),
-                                  architecture=_PROCESSOR_ARCHITECTURE,
+                                  architecture=args.architecture,
                                   operating_system=_OPERATING_SYSTEM)
 
   with open(args.output, 'w') as fp:

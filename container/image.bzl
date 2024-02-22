@@ -200,6 +200,10 @@ def _image_config(ctx, layer_name, entrypoint=None, cmd=None, env=None):
     args += ["--stamp-info-file=%s" % f.path for f in stamp_inputs]
     inputs += stamp_inputs
 
+  # Custom architecture for the layer.
+  if ctx.attr.architecture != "":
+    args.append("--architecture=" + ctx.attr.architecture)
+
   ctx.actions.run(
       executable = ctx.executable.create_image_config,
       arguments = args,
@@ -317,6 +321,7 @@ def _impl(ctx, files=None, file_map=None, empty_files=None, directory=None,
                 container_parts = container_parts)
 
 _attrs = dict({
+    "architecture": attr.string(default = ""),
     "base": attr.label(allow_files = container_filetype),
     "data_path": attr.string(),
     "directory": attr.string(default = "/"),
