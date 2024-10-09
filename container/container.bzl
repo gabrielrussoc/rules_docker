@@ -91,19 +91,25 @@ py_library(
     )
 
   # Used by oauth2client
-  if "six-1.9" not in excludes:
+  if "six" not in excludes:
     # TODO(mattmoor): Is there a clean way to override?
     http_archive(
-      name = "six-1.9",
+      name = "six",
       urls = ["https://pypi.python.org/packages/source/s/six/six-1.9.0.tar.gz"],
       sha256 = "e24052411fc4fbd1f672635537c3fc2330d9481b18c0317695b46259512c91d5",
       strip_prefix = "six-1.9.0/",
       type = "tar.gz",
       build_file_content = """
+# Rename six.py to __init__.py
+genrule(
+    name = "rename",
+    srcs = ["six.py"],
+    outs = ["__init__.py"],
+    cmd = "cat $< >$@",
+)
 py_library(
    name = "six",
-   srcs = ["six.py"],
-   import = ["."],
+   srcs = [":__init__.py"],
    visibility = ["//visibility:public"],
 )"""
     )
@@ -124,7 +130,7 @@ py_library(
    visibility = ["//visibility:public"],
    deps = [
      "@httplib2//:httplib2",
-     "@six-1.9//:six",
+     "@six//:six",
    ]
 )"""
     )
