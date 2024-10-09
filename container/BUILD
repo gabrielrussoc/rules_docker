@@ -66,15 +66,14 @@ py_binary(
 
 py_binary(
     name = "build_tar",
-    srcs = ["build_tar.py", "force_py2.py"],
+    srcs = ["build_tar.py", "force_py3.py"],
     srcs_version = "PY2AND3",
-    # We enforce Python 2 here because otherwise the checksum of the generated TAR
-    # will not be consistent. See: https://github.com/databricks/rules_docker/pull/5
-    main = "force_py2.py",
+    # We enforce Python 3 here since local copies of archive.py and tarfile.py are Python 3 only.
+    main = "force_py3.py",
     visibility = ["//visibility:public"],
     deps = [
         "@bazel_tools//third_party/py/six",
-        "@bazel_tools//tools/build_defs/pkg:archive",
+        "//container/vendor:tarfile_lib",
     ],
 )
 

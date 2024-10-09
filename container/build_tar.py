@@ -19,10 +19,10 @@ import os
 import os.path
 import sys
 import re
-import tarfile
 import tempfile
 
-from tools.build_defs.pkg import archive
+from container.vendor import archive
+from container.vendor import tarfile
 
 class TarFile(object):
   """A class to generates a Docker layer."""
