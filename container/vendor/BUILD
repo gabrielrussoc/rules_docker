@@ -4,5 +4,5 @@ py_library(
         "archive.py",
         "tarfile.py",
     ],
-    visibility = "//container:build_tar"
+    visibility = ["//container:__pkg__"],
 )
