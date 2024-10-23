@@ -154,6 +154,7 @@ function import_config() {
     local diff_id="$(cat "${RUNFILES}/$1")"
     local layer="${RUNFILES}/$2"
     echo ">>> LAYER IS AT ${layer}"
+    echo ">>> WHERE AM I $(pwd)"
 
     DIFF_IDS+=("\"sha256:${diff_id}\"")
 
@@ -184,7 +185,8 @@ function import_config() {
     # Only create the link if it doesn't exist.
     # Only add files to MISSING once.
     if [ ! -f "${diff_id}.tar" ]; then
-      ln -s "${layer}" "${diff_id}.tar"
+      cp "${layer}" "${diff_id}.tar"
+      # ln -s "${layer}" "${diff_id}.tar"
       # TEST TEST TEST
       xattr -c "${diff_id}.tar"
       MISSING+=("${diff_id}.tar")
