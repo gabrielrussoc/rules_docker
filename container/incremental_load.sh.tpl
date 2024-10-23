@@ -188,6 +188,7 @@ function import_config() {
       cp "${layer}" "${diff_id}.tar"
       # ln -s "${layer}" "${diff_id}.tar"
       # TEST TEST TEST
+      chmod +w "${diff_id}.tar"
       xattr -c "${diff_id}.tar"
       MISSING+=("${diff_id}.tar")
     fi
