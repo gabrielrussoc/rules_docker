@@ -114,6 +114,8 @@ function find_diffbase() {
 }
 
 function import_config() {
+  echo ">>>> STEP 1"
+
   # Create an image from the image configuration file.
   local name="${RUNFILES}/$1"
   shift 1
@@ -143,6 +145,8 @@ function import_config() {
     ALL_QUOTED+=("\"${diff_id}.tar\"")
   done
 
+  echo ">>>> STEP 2"
+
   # Starting from our legacy diffbase, figure out which
   # additional layers the Docker daemon already has.
   while test $# -gt 0
@@ -162,6 +166,8 @@ function import_config() {
     ALL_QUOTED+=("\"${diff_id}.tar\"")
     shift 2
   done
+
+  echo ">>>> STEP 3"
 
   # Set up the list of layers we actually need to load,
   # from the cut-off established above.
@@ -191,12 +197,16 @@ function import_config() {
 }]
 EOF
 
+  echo ">>>> STEP 4"
+
   MISSING+=("config.json" "manifest.json")
 
+  echo ">>>> STEP 5"
   # We minimize reads / writes by symlinking the layers above
   # and then streaming exactly the layers we've established are
   # needed into the Docker daemon.
   ${TAR} cPh "${MISSING[@]}" | tee image.${TAR} | "${DOCKER}" load
+  echo ">>>> STEP 6"
 }
 
 function tag_layer() {
