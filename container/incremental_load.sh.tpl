@@ -28,7 +28,7 @@ RUNFILES="${PYTHON_RUNFILES:-$(guess_runfiles)}"
 
 DOCKER="${DOCKER:-docker}"
 
-TAR=(${TAR} --xattrs)
+TAR=(tar --xattrs)
 
 # Create temporary files in which to record things to clean up.
 TEMP_FILES="$(mktemp -t 2>/dev/null || mktemp -t 'rules_docker_files')"
