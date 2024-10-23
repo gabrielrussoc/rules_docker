@@ -28,6 +28,8 @@ RUNFILES="${PYTHON_RUNFILES:-$(guess_runfiles)}"
 
 DOCKER="${DOCKER:-docker}"
 
+TAR=(${TAR} --xattrs)
+
 # Create temporary files in which to record things to clean up.
 TEMP_FILES="$(mktemp -t 2>/dev/null || mktemp -t 'rules_docker_files')"
 TEMP_IMAGES="$(mktemp -t 2>/dev/null || mktemp -t 'rules_docker_images')"
@@ -87,7 +89,7 @@ EOF
 EOF
 
   set -o pipefail
-  tar c config.json manifest.json | "${DOCKER}" load 2>/dev/null | cut -d':' -f 2- >> "${TEMP_IMAGES}"
+  ${TAR} c config.json manifest.json | "${DOCKER}" load 2>/dev/null | cut -d':' -f 2- >> "${TEMP_IMAGES}"
 }
 
 function find_diffbase() {
@@ -194,7 +196,7 @@ EOF
   # We minimize reads / writes by symlinking the layers above
   # and then streaming exactly the layers we've established are
   # needed into the Docker daemon.
-  tar cPh "${MISSING[@]}" | tee image.tar | "${DOCKER}" load
+  ${TAR} cPh "${MISSING[@]}" | tee image.${TAR} | "${DOCKER}" load
 }
 
 function tag_layer() {
