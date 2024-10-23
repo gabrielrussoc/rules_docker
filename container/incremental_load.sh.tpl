@@ -184,6 +184,8 @@ function import_config() {
     # Only add files to MISSING once.
     if [ ! -f "${diff_id}.tar" ]; then
       ln -s "${layer}" "${diff_id}.tar"
+      # TEST TEST TEST
+      xattr -c "${diff_id}.tar"
       MISSING+=("${diff_id}.tar")
     fi
   done
@@ -201,11 +203,11 @@ EOF
 
   MISSING+=("config.json" "manifest.json")
 
-  echo ">>>> STEP 5"
+  echo ">>>> STEP 5 ${MISSING[@]}"
   # We minimize reads / writes by symlinking the layers above
   # and then streaming exactly the layers we've established are
   # needed into the Docker daemon.
-  ${TAR} cPh "${MISSING[@]}" | tee image.${TAR} | "${DOCKER}" load
+  ${TAR} cPh "${MISSING[@]}" | tee image.tar | xattr -c | "${DOCKER}" load
   echo ">>>> STEP 6"
 }
 
