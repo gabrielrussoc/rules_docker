@@ -153,6 +153,7 @@ function import_config() {
   do
     local diff_id="$(cat "${RUNFILES}/$1")"
     local layer="${RUNFILES}/$2"
+    echo ">>> LAYER IS AT ${layer}"
 
     DIFF_IDS+=("\"sha256:${diff_id}\"")
 
