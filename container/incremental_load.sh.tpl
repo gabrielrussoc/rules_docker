@@ -28,6 +28,7 @@ RUNFILES="${PYTHON_RUNFILES:-$(guess_runfiles)}"
 
 DOCKER="${DOCKER:-docker}"
 
+COPYFILE_DISABLE=1
 TAR=(tar --xattrs)
 
 # Create temporary files in which to record things to clean up.
@@ -219,7 +220,7 @@ EOF
   ${TAR} cPh "${MISSING[@]}" > image.tar
   chmod +w image.tar
   xattr -c image.tar
-  "${DOCKER}" load < image.tar
+  "${DOCKER}" load -i image.tar
   # ${TAR} cPh "${MISSING[@]}" | tee image.tar | xattr -c | "${DOCKER}" load
   echo ">>>> STEP 6"
 }
