@@ -209,12 +209,7 @@ EOF
   # and then streaming exactly the layers we've established are
   # needed into the Docker daemon.
   # Explicitly ensure when generating final tar, we set --no-xattrs to avoid macOS xattr issues.
-  tar --no-xattrs -cPh "${MISSING[@]}" > image.tar
-  # if [ "$(uname)" == "Darwin" ]; then
-  #   chmod +w image.tar
-  #   xattr -c image.tar
-  # fi
-  "${DOCKER}" load -i image.tar
+  tar --no-xattrs -cPh "${MISSING[@]}" | tee image.tar | "${DOCKER}" load
 }
 
 function tag_layer() {
