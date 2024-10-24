@@ -32,12 +32,13 @@ function untar_and_retar_without_xattrs() {
     # Create a temporary directory for untarring
     local tmp_dir
     tmp_dir=$(mktemp -d)
+    chmod +rw "${tmp_dir}"
 
     # Step 1: Untar the original tarball into the temporary directory
     tar -xPf "${original_tarball}" -C "${tmp_dir}"
 
     # Step 2: Remove extended attributes from all files in the extracted directory
-    find "${tmp_dir}" -exec xattr -c {} \;
+    find "${tmp_dir}" -exec chmod +rw {} 2>/dev/null \; -exec xattr -c {} 2>/dev/null \;
 
     # Step 3: Re-tar the files without xattrs
     tar --no-xattrs -cPf "${new_tarball}" -C "${tmp_dir}" .
@@ -54,7 +55,7 @@ RUNFILES="${PYTHON_RUNFILES:-$(guess_runfiles)}"
 DOCKER="${DOCKER:-docker}"
 
 COPYFILE_DISABLE=1
-TAR=(tar --xattrs)
+TAR=(tar --no-xattrs)
 
 # Create temporary files in which to record things to clean up.
 TEMP_FILES="$(mktemp -t 2>/dev/null || mktemp -t 'rules_docker_files')"
@@ -115,7 +116,7 @@ EOF
 EOF
 
   set -o pipefail
-  ${TAR} c config.json manifest.json | "${DOCKER}" load 2>/dev/null | cut -d':' -f 2- >> "${TEMP_IMAGES}"
+  tar --no-xattrs -c config.json manifest.json | "${DOCKER}" load 2>/dev/null | cut -d':' -f 2- >> "${TEMP_IMAGES}"
 }
 
 function find_diffbase() {
@@ -211,8 +212,8 @@ function import_config() {
     # Only create the link if it doesn't exist.
     # Only add files to MISSING once.
     if [ ! -f "${diff_id}.tar" ]; then
-      untar_and_retar_without_xattrs "${layer}" "${diff_id}.tar"
-      # cp "${layer}" "${diff_id}.tar"
+      # untar_and_retar_without_xattrs "${layer}" "${diff_id}.tar"
+      cp "${layer}" "${diff_id}.tar"
       # ln -s "${layer}" "${diff_id}.tar"
       # TEST TEST TEST
       # chmod +w "${diff_id}.tar"
@@ -243,7 +244,7 @@ EOF
   # We minimize reads / writes by symlinking the layers above
   # and then streaming exactly the layers we've established are
   # needed into the Docker daemon.
-  ${TAR} cPh "${MISSING[@]}" > image.tar
+  tar --no-xattrs -cPh "${MISSING[@]}" > image.tar
   chmod +w image.tar
   xattr -c image.tar
   "${DOCKER}" load -i image.tar
