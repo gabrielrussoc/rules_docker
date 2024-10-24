@@ -24,38 +24,9 @@ function guess_runfiles() {
     popd > /dev/null 2>&1
 }
 
-function untar_and_retar_without_xattrs() {
-    # Parameters: original tarball and new tarball
-    local original_tarball="$1"
-    local new_tarball="$2"
-
-    # Create a temporary directory for untarring
-    local tmp_dir
-    tmp_dir=$(mktemp -d)
-    chmod +rw "${tmp_dir}"
-
-    # Step 1: Untar the original tarball into the temporary directory
-    tar -xPf "${original_tarball}" -C "${tmp_dir}"
-
-    # Step 2: Remove extended attributes from all files in the extracted directory
-    find "${tmp_dir}" -exec chmod +rw {} 2>/dev/null \; -exec xattr -c {} 2>/dev/null \;
-
-    # Step 3: Re-tar the files without xattrs
-    tar --no-xattrs -cPf "${new_tarball}" -C "${tmp_dir}" .
-
-    # Clean up the temporary directory
-    rm -rf "${tmp_dir}"
-
-    echo "!!! OLD SHA256: $(sha256sum "${original_tarball}" | cut -d' ' -f1), NEW SHA256: $(sha256sum "${new_tarball}" | cut -d' ' -f1)"
-}
-
-
 RUNFILES="${PYTHON_RUNFILES:-$(guess_runfiles)}"
 
 DOCKER="${DOCKER:-docker}"
-
-COPYFILE_DISABLE=1
-TAR=(tar --no-xattrs)
 
 # Create temporary files in which to record things to clean up.
 TEMP_FILES="$(mktemp -t 2>/dev/null || mktemp -t 'rules_docker_files')"
@@ -141,8 +112,6 @@ function find_diffbase() {
 }
 
 function import_config() {
-  echo ">>>> STEP 1"
-
   # Create an image from the image configuration file.
   local name="${RUNFILES}/$1"
   shift 1
@@ -172,16 +141,12 @@ function import_config() {
     ALL_QUOTED+=("\"${diff_id}.tar\"")
   done
 
-  echo ">>>> STEP 2"
-
   # Starting from our legacy diffbase, figure out which
   # additional layers the Docker daemon already has.
   while test $# -gt 0
   do
     local diff_id="$(cat "${RUNFILES}/$1")"
     local layer="${RUNFILES}/$2"
-    echo ">>> LAYER IS AT ${layer}"
-    echo ">>> WHERE AM I $(pwd)"
 
     DIFF_IDS+=("\"sha256:${diff_id}\"")
 
@@ -195,8 +160,6 @@ function import_config() {
     ALL_QUOTED+=("\"${diff_id}.tar\"")
     shift 2
   done
-
-  echo ">>>> STEP 3"
 
   # Set up the list of layers we actually need to load,
   # from the cut-off established above.
@@ -212,12 +175,12 @@ function import_config() {
     # Only create the link if it doesn't exist.
     # Only add files to MISSING once.
     if [ ! -f "${diff_id}.tar" ]; then
-      # untar_and_retar_without_xattrs "${layer}" "${diff_id}.tar"
-      cp "${layer}" "${diff_id}.tar"
-      # ln -s "${layer}" "${diff_id}.tar"
-      # TEST TEST TEST
-      # chmod +w "${diff_id}.tar"
-      # xattr -c "${diff_id}.tar"
+      # If on macOS, copy as we need to remove xattrs (otherwise source tar is readonly). Otherwise, use symlink.
+      if [ "$(uname)" == "Darwin" ]; then
+        cp "${layer}" "${diff_id}.tar"
+      else
+        ln -s "${layer}" "${diff_id}.tar"
+      fi
       MISSING+=("${diff_id}.tar")
     fi
   done
@@ -231,25 +194,27 @@ function import_config() {
 }]
 EOF
 
-  echo ">>>> STEP 4"
-
   MISSING+=("config.json" "manifest.json")
 
-  for file in "${MISSING[@]}"; do
-    chmod +w "${file}"
-    xattr -c "${file}"
-  done
+  # On macOS, clean all xattrs from the files we're going to load.
+  if [ "$(uname)" == "Darwin" ]; then
+    echo "Cleaning xattrs from files on macOS..."
+    for file in "${MISSING[@]}"; do
+      chmod +w "${file}"
+      xattr -c "${file}"
+    done
+  fi
 
-  echo ">>>> STEP 5 ${MISSING[@]}"
   # We minimize reads / writes by symlinking the layers above
   # and then streaming exactly the layers we've established are
   # needed into the Docker daemon.
+  # Explicitly ensure when generating final tar, we set --no-xattrs to avoid macOS xattr issues.
   tar --no-xattrs -cPh "${MISSING[@]}" > image.tar
-  chmod +w image.tar
-  xattr -c image.tar
+  # if [ "$(uname)" == "Darwin" ]; then
+  #   chmod +w image.tar
+  #   xattr -c image.tar
+  # fi
   "${DOCKER}" load -i image.tar
-  # ${TAR} cPh "${MISSING[@]}" | tee image.tar | xattr -c | "${DOCKER}" load
-  echo ">>>> STEP 6"
 }
 
 function tag_layer() {
