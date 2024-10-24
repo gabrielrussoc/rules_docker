@@ -24,6 +24,31 @@ function guess_runfiles() {
     popd > /dev/null 2>&1
 }
 
+function untar_and_retar_without_xattrs() {
+    # Parameters: original tarball and new tarball
+    local original_tarball="$1"
+    local new_tarball="$2"
+
+    # Create a temporary directory for untarring
+    local tmp_dir
+    tmp_dir=$(mktemp -d)
+
+    # Step 1: Untar the original tarball into the temporary directory
+    tar -xPf "${original_tarball}" -C "${tmp_dir}"
+
+    # Step 2: Remove extended attributes from all files in the extracted directory
+    find "${tmp_dir}" -exec xattr -c {} \;
+
+    # Step 3: Re-tar the files without xattrs
+    tar --no-xattrs -cPf "${new_tarball}" -C "${tmp_dir}" .
+
+    # Clean up the temporary directory
+    rm -rf "${tmp_dir}"
+
+    echo "!!! OLD SHA256: $(sha256sum "${original_tarball}" | cut -d' ' -f1), NEW SHA256: $(sha256sum "${new_tarball}" | cut -d' ' -f1)"
+}
+
+
 RUNFILES="${PYTHON_RUNFILES:-$(guess_runfiles)}"
 
 DOCKER="${DOCKER:-docker}"
@@ -186,7 +211,8 @@ function import_config() {
     # Only create the link if it doesn't exist.
     # Only add files to MISSING once.
     if [ ! -f "${diff_id}.tar" ]; then
-      cp "${layer}" "${diff_id}.tar"
+      untar_and_retar_without_xattrs "${layer}" "${diff_id}.tar"
+      # cp "${layer}" "${diff_id}.tar"
       # ln -s "${layer}" "${diff_id}.tar"
       # TEST TEST TEST
       # chmod +w "${diff_id}.tar"
