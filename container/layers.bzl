@@ -150,6 +150,7 @@ def incremental_load(ctx, images, output,
               for f in stamp_files]),
           "%{load_statements}": "\n".join(load_statements),
           "%{run_statements}": "\n".join(run_statements),
+          "%{loader_tool}": _get_runfile_path(ctx, ctx.executable._loader_tool),
       },
       output = output,
       is_executable = True)
@@ -158,6 +159,12 @@ tools = {
     "incremental_load_template": attr.label(
         default = Label("//container:incremental_load_template"),
         allow_single_file = True,
+    ),
+    "_loader_tool": attr.label(
+        default = Label("//container:loader_tool"),
+        cfg = "host",
+        executable = True,
+        allow_files = True,
     ),
     "join_layers": attr.label(
         default = Label("//container:join_layers"),

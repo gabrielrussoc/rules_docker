@@ -77,6 +77,12 @@ py_binary(
     ],
 )
 
+py_binary(
+    name = "loader_tool",
+    srcs = ["loader_tool.py"],
+    deps = ["@bazel_tools//tools/python/runfiles"]
+)
+
 TEST_TARGETS = [
     "base_with_entrypoint",
     "base_with_volume",

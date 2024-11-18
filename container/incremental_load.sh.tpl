@@ -111,7 +111,7 @@ function find_diffbase() {
   echo "${TOTAL_DIFF_IDS[@]:0:${LEGACY_COUNT}}"
 }
 
-function import_config() {
+function import_config_macos() {
   local TAG="$1"
   shift 1
 
@@ -201,7 +201,7 @@ EOF
 
   # On macOS, clean all xattrs from the files we're going to load.
   if [ "$(uname)" == "Darwin" ]; then
-    echo "Cleaning xattrs from files on macOS..."
+    echo "Cleaning xattrs from files on macOS..." >&2
     for file in "${MISSING[@]}"; do
       chmod +w "${file}"
       xattr -c "${file}"
@@ -218,6 +218,75 @@ EOF
   IMAGE_ID=$(cat $DOCKER_LOAD_OUTPUT_FILE | awk -F'sha256:' '{print $2}')
   echo "Tagging ${IMAGE_ID} as ${TAG}"
   "${DOCKER}" tag sha256:${IMAGE_ID} ${TAG}
+}
+
+function import_config() {
+  if [ "$(uname)" == "Darwin" ]; then
+    import_config_macos "$@"
+    return
+  fi
+  local TAG="$1"
+  shift 1
+
+  # Save the arguments to forward to our loader tool
+  local config_and_layers=("$@")
+
+  # This is an optimization that only affects systems using containerd storage, namely RBE. 
+  # In this case, when we 'docker pull', the docker client will ask the snapshotter what to do.
+  # The snapshotter will either say:
+  #   1. I don't have this, go ahead and pull it; OR
+  #   2. I already have it, you don't need to pull anything.
+  # In case of (1.), we will store this into a place called 'content store'.
+  # When using sysbox docker-in-docker, this 'content store' is local to every daemon.
+  # Once we need to create a container, we will copy the image from the 'content store' into
+  # the snapshotter, which is shared across all daemons.
+  # In the worst case, if many actions try to pull the same image on a cold snapshotter,
+  # we would end up with one copy of the image in every daemon 'content store'.
+  # The trick: instead of actually copying the image to the content store, we just drop a symlink
+  # from the action inputs into the 'content store'. The docker client is smart enough to pull only
+  # what's missing on their content stores.
+  # To recap:
+  #   1. We symlink the image layers into the local daemon 'content store'.
+  #   2. We docker pull from our local registry.
+  #   3. The docker client will ask the snapshotter whether it needs to pull the image or not.
+  #   4. If the snapshotter says yes, we will start the pull operation.
+  #   5. The pull operation is a no-op due to (1.), i.e. all the layers are already present.
+  #   6. When we create a container, we load the image into the snapshotter.
+  #   7. The snapshotter will dedupe images in case of race conditions.
+  # Once loaded in the snapshotter, we don't care about the content store anymore. So it's fine
+  # if those symlinks dangle.
+  if [[ -w "/var/lib/containerd/io.containerd.content.v1.content/blobs/sha256" ]]; then
+    shift 1
+    while test $# -gt 0
+    do
+      local diff_id="$(cat "${RUNFILES}/$1")"
+      local layer="${RUNFILES}/$2"
+      local layer_in_content_store="/var/lib/containerd/io.containerd.content.v1.content/blobs/sha256/${diff_id}"
+      if [[ ! -e "${layer_in_content_store}" ]]; then
+        if [[ -L "${layer_in_content_store}" ]]; then
+          rm "${layer_in_content_store}"
+        fi
+        ln -s "$(readlink -f "${layer}")" "${layer_in_content_store}"
+      fi
+      shift 2
+    done
+  fi
+
+  # Load and pull the image from the local registry
+  local ref=$("${RUNFILES}/%{loader_tool}" "${DOCKER}" "${config_and_layers[@]}")
+
+  # Prints to keep compatibility on other scripts parsing this output
+  # since 'docker load' used to print the sha
+  local image_id=$("${DOCKER}" inspect --format "{{ .Id }}" "${ref}" | awk -F'sha256:' '{print $2}')
+  echo sha256:${image_id}
+
+  echo "Tagging ${image_id} as ${TAG}"
+  "${DOCKER}" tag "${ref}" "${TAG}"
+
+  # Clean up the temporary tag created by docker pull
+  # This DOES NOT delete the image, just the tag.
+  # By default, docker pull creates a tag based on the reference you pulled from.
+  "${DOCKER}" rmi "${ref}" >&2
 }
 
 function read_variables() {
