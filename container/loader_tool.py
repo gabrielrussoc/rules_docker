@@ -204,11 +204,22 @@ ssl_context = ssl._create_unverified_context()
 
 
 def is_server_ready(url):
-    try:
-        with urllib.request.urlopen(url, context=ssl_context) as response:
-            return response.status == 200
-    except:
-        return False
+    with urllib.request.urlopen(url, context=ssl_context) as response:
+        if response.status == 200:
+            return True
+        raise Exception("Server not ready yet, status code: %d" % response.status)
+
+
+def retry_with_backoff(fn, friendly_name, max_retries=5, initial_backoff_secs=1):
+    backoff_secs = initial_backoff_secs
+    for i in range(max_retries):
+        try:
+            fn()
+        except Exception as e:
+            print("%s failed with" % friendly_name, e, file=sys.stderr)
+            print("Will retry %d more time(s)" % (max_retries-i-1))
+            time.sleep(backoff_secs)
+            backoff_secs = 2 * backoff_secs
 
 
 if __name__ == "__main__":
@@ -240,20 +251,15 @@ if __name__ == "__main__":
     server_thread = threading.Thread(target=start_server, daemon=True)
     server_thread.start()
 
-    tries = 5
-    backoff_secs = 1
-    server_running = False
     endpoint = "https://%s/v2/" % address_with_port
-    for _ in range(tries):
-        if is_server_ready(endpoint):
-            server_running = True
-            break
-        else:
-            time.sleep(backoff_secs)
-            backoff_secs = 2 * backoff_secs
+    retry_with_backoff(
+        lambda: is_server_ready(endpoint),
+        "Assert server running on %s" % endpoint
+    )
 
-    if not server_running:
-        raise Exception("Local registry is not listening on %s" % address_with_port)
+    retry_with_backoff(
+        lambda: subprocess.check_call([docker_binary, "pull", pullable_image], stdout=sys.stderr, stderr=sys.stderr),
+        friendly_name="Docker pull %s" % pullable_image
+    )
 
-    subprocess.check_call([docker_binary, "pull", pullable_image], stdout=sys.stderr, stderr=sys.stderr)
     print(pullable_image, flush=True)
