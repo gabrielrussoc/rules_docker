@@ -217,7 +217,7 @@ def retry_with_backoff(fn, friendly_name, max_retries=5, initial_backoff_secs=1)
             fn()
         except Exception as e:
             print("%s failed with" % friendly_name, e, file=sys.stderr)
-            print("Will retry %d more time(s)" % (max_retries-i-1))
+            print("Will retry %d more time(s)" % (max_retries-i-1), file=sys.stderr)
             time.sleep(backoff_secs)
             backoff_secs = 2 * backoff_secs
 
